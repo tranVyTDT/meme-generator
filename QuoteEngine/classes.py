@@ -1,5 +1,6 @@
 import csv
 import os
+import subprocess
 from docx import Document
 from .interfaces import IngestorInterface
 from .models import QuoteModel
@@ -59,12 +60,34 @@ class CSVIngestor(IngestorInterface):
 
 class PDFIngestor(IngestorInterface):
     """ ingest pdf file """
+    pdftotext_path = 'C:\\Users\\ttvy\\OneDrive\\Tài liệu\\xpdf-tools-win-4.04\\xpdf-tools-win-4.04\\bin64\\pdftotext.exe'
 
     def can_ingest(path):
         """ Check for given a pdf file path, is the file exist """
         return os.path.exists(path)
 
+    def parse(path):
+        """ 
+        Perform parse a pdf file path 
+        
+        Args:
+            path(str): path of a file
+        
+        Returns:
+            list[QuoteModel]
+        """
+        output = subprocess.run([PDFIngestor.pdftotext_path, path, '-'],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if output.returncode == 0:
+            text = output.stdout.decode('utf-8')
+            texts = text.split(" - ")
+            texts = [text.split("\"") for text in texts]
+            texts = [item.strip() for text in texts for item in text if item]
+            return [QuoteModel(texts[i], texts[i+1]) for i in range(0, len(texts)-1, 2)]
 
+        else:
+            error_message = output.stderr.decode('utf-8')
+            print(f'Error converting PDF: {error_message}')
 
 class DocxIngestor(IngestorInterface):
     """ ingest docx file """
